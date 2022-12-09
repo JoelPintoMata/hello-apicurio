@@ -23,8 +23,7 @@ public class Producer {
         // Create configuration options for our producer and initialize a new producer
         Properties props = new Properties();
 
-        String registryUrl = "http://localhost:8080/apis/registry/v2";
-        props.putIfAbsent(SerdeConfig.REGISTRY_URL, registryUrl);
+        props.putIfAbsent(SerdeConfig.REGISTRY_URL, Constants.REGISTRY_URL);
 
         props.putIfAbsent(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, Constants.BOOTSTRAP_SERVERS);
         props.putIfAbsent(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());

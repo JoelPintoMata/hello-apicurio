@@ -7,6 +7,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,12 +15,22 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Consumer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Consumer.class);
 
     public static void main(String[] args) {
+
+        /* Sadly, we need to do some string parsing to deal with 'poison pill' records (i.e. any message that cannot be
+        de-serialized by KafkaAvroDeserializer, most likely because they weren't produced using Schema Registry) so we
+        need to set up some regex things
+         */
+        final Pattern offsetPattern = Pattern.compile("\\w*offset*\\w[ ]\\d+");
+        final Pattern partitionPattern = Pattern.compile("\\w*" + Constants.TOPIC + "*\\w[-]\\d+");
+
         // Create configuration options for our consumer
         Properties props = new Properties();
 
@@ -53,9 +64,28 @@ public class Consumer {
                 // The consumer.poll method checks and waits for any new messages to arrive for the subscribed topic
                 // in case there are no messages for the duration specified in the argument (1000 ms
                 // in this case), it returns an empty list
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
-                for (ConsumerRecord<String, String> record : records) {
-                    System.out.printf("received message: %s, global id: %s\n", record.value(), record.headers().toArray()[0].toString());
+                try {
+                    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10));
+                    for (ConsumerRecord<String, String> record : records) {
+                        System.out.printf("received message: %s, global id: %s\n", record.value(), record.headers().toArray()[0].toString());
+                    }
+                } catch (Exception e) {
+                    String text = e.getMessage();
+
+                    // Parse the error message to get the partition number and offset, in order to `seek` past the poison pill.
+                    Matcher mPart = partitionPattern.matcher(text);
+                    Matcher mOff = offsetPattern.matcher(text);
+
+                    mPart.find();
+                    Integer partition = Integer.parseInt(mPart.group().replace(Constants.TOPIC + "-", ""));
+                    mOff.find();
+                    Long offset = Long.parseLong(mOff.group().replace("offset ", ""));
+
+                    System.out.println(String.format(
+                            "'Poison pill' found at partition {0}, offset {1} .. skipping", partition, offset));
+
+                    consumer.seek(new TopicPartition(Constants.TOPIC, partition), offset + 1);
+                    // Continue on
                 }
             }
         }

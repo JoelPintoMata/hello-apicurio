@@ -1,0 +1,15 @@
+{
+   "type":"record",
+   "name":"thing",
+   "namespace":"avro",
+   "fields":[
+      {
+         "name":"code",
+         "type":"string"
+      },
+      {
+         "name":"title",
+         "type":"string"
+      }
+   ]
+}

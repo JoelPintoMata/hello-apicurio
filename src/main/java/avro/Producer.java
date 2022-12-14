@@ -1,4 +1,4 @@
-package ProducerConsumer;
+package avro;
 
 import io.apicurio.registry.serde.SerdeConfig;
 import io.apicurio.registry.serde.avro.AvroKafkaSerializer;
@@ -13,6 +13,9 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Properties;
 
 public class Producer {
@@ -35,16 +38,24 @@ public class Producer {
         try (org.apache.kafka.clients.producer.Producer<String, GenericRecord> producer = new KafkaProducer<>(props)) {
             // here, we run an infinite loop to send a message to the cluster every second
 
-            Schema schema = new Schema.Parser().parse(Constants.SCHEMA);
-            for (int i = 0; ; i++) {
+            String schemaPath = "src/main/java/avro/thing.asvc";
+            String valueSchemaString = "";
 
-                // Use the schema to create a record
-                GenericRecord record = new GenericData.Record(schema);
-                record.put("code", "some code (" + i + ")");
-                record.put("title", "some title (" + i + ")");
+            try {
+                valueSchemaString = new String(Files.readAllBytes(Paths.get(schemaPath)));
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
+            Schema avroValueSchema = new Schema.Parser().parse(valueSchemaString);
+            GenericRecord thisValueRecord = new GenericData.Record(avroValueSchema);
+
+            for (int i = 0; ; i++) {
+                thisValueRecord.put("code", "some code (" + i + ")");
+                thisValueRecord.put("title", "some title (" + i + ")");
 
                 // Send/produce the message on the Kafka Producer
-                ProducerRecord<String, GenericRecord> producedRecord = new ProducerRecord<>(Constants.TOPIC, Constants.SUBJECT, record);
+                ProducerRecord<String, GenericRecord> producedRecord = new ProducerRecord<>(Constants.TOPIC, Constants.SUBJECT, thisValueRecord);
                 producer.send(producedRecord);
 
                 // log a confirmation once the message is written

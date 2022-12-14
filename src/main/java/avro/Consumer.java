@@ -1,4 +1,4 @@
-package ProducerConsumer;
+package avro;
 
 import io.apicurio.registry.serde.SerdeConfig;
 import io.apicurio.registry.serde.avro.AvroKafkaDeserializer;
@@ -8,6 +8,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +70,7 @@ public class Consumer {
                     for (ConsumerRecord<String, String> record : records) {
                         System.out.printf("received message: %s, global id: %s\n", record.value(), record.headers().toArray()[0].toString());
                     }
-                } catch (Exception e) {
+                } catch (SerializationException e) {
                     String text = e.getMessage();
 
                     // Parse the error message to get the partition number and offset, in order to `seek` past the poison pill.
